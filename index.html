@@ -118,15 +118,15 @@
           </div>
         </div>
         <div>
-          <h1 class="font-serif font-bold text-xl sm:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-amber-500 tracking-wider">
-            藥光療癒練習小工具 <span class="text-xs font-sans text-amber-400/70 uppercase tracking-widest font-normal ml-1">Medicine Light Practice Tool</span>
+          <h1 class="font-serif font-bold text-base xs:text-lg sm:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-amber-500 tracking-wide leading-tight">
+            藥光療癒練習小工具 <span class="text-[10px] sm:text-xs font-sans text-amber-400/70 uppercase tracking-widest font-normal ml-1 hidden md:inline">Medicine Light Practice Tool</span>
           </h1>
-          <p class="text-xs text-zen-textMuted hidden sm:block">小小計時器，讓藥光陪你練習每一天</p>
+          <p class="text-[11px] sm:text-xs text-zen-textMuted leading-tight mt-0.5">小小計時器，讓藥光陪你練習每一天</p>
         </div>
       </div>
 
       <!-- Header Action Controls & Status Badges -->
-      <div class="flex items-center gap-2 sm:gap-4">
+      <div class="flex items-center gap-1.5 sm:gap-4">
         
         <!-- Screen Wake Lock Status Badge -->
         <div id="wakeLockStatus" class="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-900 border border-slate-800 text-slate-400 transition-all duration-300">
@@ -135,13 +135,14 @@
         </div>
 
         <!-- Test Audio Button -->
-        <button id="testAudioBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all active:scale-95 cursor-pointer" title="點擊測試頌缽音效">
+        <button id="testAudioBtn" class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all active:scale-95 cursor-pointer" title="點擊測試頌缽音效">
           <i data-lucide="volume-2" class="w-4 h-4"></i>
           <span class="hidden xs:inline">測試磬聲</span>
         </button>
 
-        <!-- YouTube Toggle Drawer Button -->
-        <button id="toggleYtDrawerBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all active:scale-95 cursor-pointer">
+        <!-- YouTube Toggle Drawer Button (帶暗金色音符) -->
+        <button id="toggleYtDrawerBtn" class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-amber-500/30 transition-all active:scale-95 cursor-pointer shadow-md">
+          <i data-lucide="music" class="w-4 h-4 text-zen-gold"></i>
           <i data-lucide="youtube" class="w-4 h-4 text-red-400"></i>
           <span>音樂播放器</span>
         </button>
@@ -174,8 +175,8 @@
     <!-- Layout Grid: Left / Center Main Timer Area & Right YouTube Drawer (Responsive) -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       
-      <!-- MAIN TIMER COLUMN (Spans full or 8 cols when YT drawer open) -->
-      <div id="timerMainColumn" class="lg:col-span-12 transition-all duration-500 flex flex-col items-center gap-6">
+      <!-- MAIN TIMER COLUMN (Spans 8 cols when YT drawer open by default) -->
+      <div id="timerMainColumn" class="lg:col-span-8 transition-all duration-500 flex flex-col items-center gap-6">
 
         <!-- ================= MODE 1: CYCLIC TIMER (循環倒數) ================= -->
         <section id="cyclicSection" class="w-full max-w-2xl flex flex-col items-center gap-6">
@@ -207,6 +208,31 @@
               <span id="cyclicNextText" class="text-slate-300 font-serif truncate max-w-[80%] text-right">
                 2. 頂輪＋右腦
               </span>
+            </div>
+          </div>
+
+          <!-- Starting Hand Position Selector Card (從第__個手位開始) -->
+          <div class="w-full bg-slate-900/90 border border-zen-cardBorder rounded-2xl p-4 shadow-xl backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2 text-amber-300 font-semibold shrink-0">
+              <i data-lucide="layers" class="w-4 h-4 text-amber-400"></i>
+              <span>手位進度設定：</span>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <!-- (1) 從頭開始 Button -->
+              <button id="cyclicJumpFirstBtn" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all font-medium flex items-center gap-1 cursor-pointer active:scale-95">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-amber-400"></i>
+                (1) 從頭開始
+              </button>
+
+              <!-- (2) 從第__個手位開始 Dropdown -->
+              <div class="flex items-center gap-1.5 bg-slate-950 border border-amber-500/40 rounded-xl px-3 py-1 flex-1 sm:flex-initial">
+                <span class="text-slate-400 font-medium shrink-0">(2) 從第</span>
+                <select id="cyclicHandPosSelect" class="bg-transparent text-amber-200 font-bold border-0 outline-none cursor-pointer py-1 max-w-[170px] sm:max-w-[210px] truncate">
+                  <!-- Dynamically populated options -->
+                </select>
+                <span class="text-slate-400 font-medium shrink-0">個手位開始</span>
+              </div>
             </div>
           </div>
 
@@ -405,8 +431,8 @@
       </div>
 
 
-      <!-- YOUTUBE PLAYER DRAWER / PANEL (Collapsible or Side Panel) -->
-      <div id="ytDrawerPanel" class="lg:col-span-4 w-full bg-slate-900/90 border border-zen-cardBorder rounded-2xl p-5 shadow-2xl backdrop-blur-md hidden transition-all duration-500">
+      <!-- YOUTUBE PLAYER DRAWER / PANEL (Open by Default) -->
+      <div id="ytDrawerPanel" class="lg:col-span-4 w-full bg-slate-900/90 border border-zen-cardBorder rounded-2xl p-5 shadow-2xl backdrop-blur-md transition-all duration-500">
         
         <!-- Header -->
         <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
@@ -628,7 +654,7 @@
 
     /**
      * Synthesizes an authentic Tibetan Singing Bowl sound using multi-harmonic sine waves,
-     * amplitude envelope decay, and pitch LFO vibrato.
+     * amplitude envelope decay, and pitch LFO vibrato. Volume boosted 40%.
      */
     function playSingingBowl(pitchRatio = 1.0) {
       ensureAudioUnlocked(() => {
@@ -637,20 +663,20 @@
           if (!ctx || ctx.state !== 'running') return;
           const now = ctx.currentTime;
 
-          // Master Gain
+          // Master Gain (boosted 40%+)
           const masterGain = ctx.createGain();
-          masterGain.gain.setValueAtTime(0.7, now);
+          masterGain.gain.setValueAtTime(1.0, now);
           masterGain.connect(ctx.destination);
 
-          // Fundamental frequency for deep meditative tone (e.g. 216Hz or 288Hz)
+          // Fundamental frequency for deep meditative tone
           const fundamental = 216 * pitchRatio;
 
-          // Harmonics array for rich brassy singing bowl resonance: [freq_multiplier, gain_weight, decay_sec]
+          // Harmonics array: [freq_multiplier, gain_weight, decay_sec] (boosted volume)
           const harmonics = [
-            [1.0,   1.0,  5.5], // Fundamental
-            [2.76,  0.4,  4.5], // 2nd Partial (overtone)
-            [5.40,  0.2,  3.5], // 3rd Partial
-            [8.90,  0.08, 2.5]  // Metallic shimmer
+            [1.0,   1.40, 6.0], // Fundamental
+            [2.76,  0.56, 5.0], // 2nd Partial
+            [5.40,  0.28, 4.0], // 3rd Partial
+            [8.90,  0.11, 3.0]  // Metallic shimmer
           ];
 
           harmonics.forEach(([mult, gainVal, decaySec]) => {
@@ -660,18 +686,18 @@
             osc.type = 'sine';
             osc.frequency.setValueAtTime(fundamental * mult, now);
 
-            // Subtle pitch vibrato (hand-hammered bowl resonance)
+            // Subtle pitch vibrato
             const lfo = ctx.createOscillator();
             const lfoGain = ctx.createGain();
-            lfo.frequency.setValueAtTime(3.5, now); // 3.5 Hz pulse
+            lfo.frequency.setValueAtTime(3.5, now);
             lfoGain.gain.setValueAtTime(fundamental * mult * 0.003, now);
             lfo.connect(osc.frequency);
             lfo.start(now);
             lfo.stop(now + decaySec);
 
-            // Envelope: Instant strike attack then exponential decay
+            // Envelope: Instant strike attack then exponential decay (volume boosted)
             gainNode.gain.setValueAtTime(0.001, now);
-            gainNode.gain.linearRampToValueAtTime(gainVal * 0.5, now + 0.03);
+            gainNode.gain.linearRampToValueAtTime(gainVal * 0.7, now + 0.03);
             gainNode.gain.exponentialRampToValueAtTime(0.0001, now + decaySec);
 
             osc.connect(gainNode);
@@ -774,15 +800,32 @@
     }
 
     function onPlayerStateChange(event) {
+      // Enforce volume setting whenever YouTube starts playing or buffering
+      if (event.data === YT.PlayerState.PLAYING || event.data === YT.PlayerState.BUFFERING) {
+        applyYouTubeVolume();
+      }
+
       // YT.PlayerState.ENDED = 0
       if (event.data === YT.PlayerState.ENDED) {
         handleTrackEnded();
       }
     }
 
+    function applyYouTubeVolume() {
+      if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
+        ytPlayer.setVolume(ytVolume);
+        if (ytIsMuted || ytVolume === 0) {
+          ytPlayer.mute();
+        } else {
+          ytPlayer.unMute();
+        }
+      }
+    }
+
     function handleTrackEnded() {
       if (ytLoopMode === 'single') {
         ytPlayer.playVideo();
+        applyYouTubeVolume();
       } else if (ytLoopMode === 'playlist') {
         ytCurrentIndex = (ytCurrentIndex + 1) % ytPlaylist.length;
         playPlaylistItem(ytCurrentIndex);
@@ -798,8 +841,10 @@
     function playPlaylistItem(index) {
       if (index < 0 || index >= ytPlaylist.length) return;
       ytCurrentIndex = index;
-      if (ytIsReady && ytPlayer) {
+      if (ytIsReady && ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
         ytPlayer.loadVideoById(ytPlaylist[index].id);
+        setTimeout(applyYouTubeVolume, 200);
+        setTimeout(applyYouTubeVolume, 600);
         renderPlaylistUI();
       }
     }
@@ -981,11 +1026,26 @@
     }
 
     /* --- Mode 1: Cyclic Timer --- */
+    function populateHandPosSelect() {
+      const select = document.getElementById('cyclicHandPosSelect');
+      if (!select) return;
+      select.innerHTML = '';
+      cyclicPromptsList.forEach((promptText, idx) => {
+        const roundNum = idx + 1;
+        const opt = document.createElement('option');
+        opt.value = roundNum;
+        opt.className = 'bg-slate-900 text-amber-100 font-sans';
+        opt.textContent = `${roundNum}. ${promptText.replace(/^\d+\.\s*/, '')}`;
+        if (roundNum === cyclicCurrentRound) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
     function updateCyclicUI() {
       // Display current round remaining time
       document.getElementById('cyclicTimeDisplay').textContent = formatTime(cyclicRemainingSeconds);
       
-      // Total remaining time
+      // Total remaining time from current round onwards
       const totalRemaining = ((cyclicTotalRounds - cyclicCurrentRound) * cyclicSingleDuration) + cyclicRemainingSeconds;
       document.getElementById('cyclicTotalTimeDisplay').textContent = formatTime(totalRemaining);
 
@@ -1005,7 +1065,13 @@
       if (cyclicCurrentRound < cyclicTotalRounds) {
         document.getElementById('cyclicNextText').textContent = cyclicPromptsList[nextPromptIndex] || `第 ${cyclicCurrentRound + 1} 輪`;
       } else {
-        document.getElementById('cyclicNextText').textContent = '這是最後一輪，準備圓滿結尾';
+        document.getElementById('cyclicNextText').textContent = '這是最後一個手位，準備圓滿結尾';
+      }
+
+      // Sync starting position dropdown selector
+      const select = document.getElementById('cyclicHandPosSelect');
+      if (select && parseInt(select.value) !== cyclicCurrentRound) {
+        select.value = cyclicCurrentRound;
       }
     }
 
@@ -1305,6 +1371,7 @@
         cyclicPromptsList = [...DEFAULT_PROMPTS];
       }
       document.getElementById('promptLineCount').textContent = `共 ${cyclicPromptsList.length} 行`;
+      populateHandPosSelect();
     }
 
 
@@ -1330,6 +1397,7 @@
 
       // Initial UI Sync
       cyclicRemainingSeconds = cyclicSingleDuration;
+      parsePromptsTextarea();
       updateCyclicUI();
       updateCountdownUI();
       updateStopwatchUI();
@@ -1404,27 +1472,20 @@
       document.getElementById('toggleYtDrawerBtn').addEventListener('click', toggleDrawer);
       document.getElementById('closeYtDrawerBtn').addEventListener('click', toggleDrawer);
 
-      // --- Cyclic Controls ---
-      function updateCyclicFromInputs() {
-        const m = parseInt(document.getElementById('cyclicMinInput').value) || 0;
-        const s = parseInt(document.getElementById('cyclicSecInput').value) || 0;
-        const rounds = parseInt(document.getElementById('cyclicRoundsInput').value) || 1;
+      // Hand Position Starting Selector Events
+      document.getElementById('cyclicJumpFirstBtn').addEventListener('click', () => {
+        cyclicCurrentRound = 1;
+        cyclicRemainingSeconds = cyclicSingleDuration;
+        updateCyclicUI();
+        showToast('已回到第 1 個手位 (從頭開始)');
+      });
 
-        cyclicSingleDuration = (m * 60) + s;
-        cyclicTotalRounds = rounds;
-
-        if (!cyclicIsRunning) {
-          cyclicRemainingSeconds = cyclicSingleDuration;
-          updateCyclicUI();
-        }
-      }
-
-      ['cyclicMinInput', 'cyclicSecInput', 'cyclicRoundsInput'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-          el.addEventListener('input', updateCyclicFromInputs);
-          el.addEventListener('change', updateCyclicFromInputs);
-        }
+      document.getElementById('cyclicHandPosSelect').addEventListener('change', (e) => {
+        const targetRound = parseInt(e.target.value) || 1;
+        cyclicCurrentRound = Math.min(Math.max(1, targetRound), cyclicTotalRounds);
+        cyclicRemainingSeconds = cyclicSingleDuration;
+        updateCyclicUI();
+        showToast(`已跳至第 ${cyclicCurrentRound} 個手位：${cyclicPromptsList[cyclicCurrentRound - 1] || ''}`);
       });
 
       document.getElementById('cyclicStartBtn').addEventListener('click', startCyclicTimer);
@@ -1497,28 +1558,15 @@
       document.getElementById('ytVolumeSlider').addEventListener('input', (e) => {
         ytVolume = parseInt(e.target.value) || 0;
         document.getElementById('ytVolumeValue').textContent = `${ytVolume}%`;
-        if (ytIsReady && ytPlayer && typeof ytPlayer.setVolume === 'function') {
-          ytPlayer.setVolume(ytVolume);
-          if (ytVolume === 0) {
-            ytPlayer.mute();
-          } else {
-            ytPlayer.unMute();
-          }
-        }
+        ytIsMuted = (ytVolume === 0);
+        applyYouTubeVolume();
         updateVolumeIcon();
         saveStateToLocalStorage();
       });
 
       document.getElementById('ytMuteBtn').addEventListener('click', () => {
         ytIsMuted = !ytIsMuted;
-        if (ytIsReady && ytPlayer) {
-          if (ytIsMuted) {
-            ytPlayer.mute();
-          } else {
-            ytPlayer.unMute();
-            ytPlayer.setVolume(ytVolume);
-          }
-        }
+        applyYouTubeVolume();
         updateVolumeIcon();
       });
 
