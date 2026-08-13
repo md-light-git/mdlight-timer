@@ -654,7 +654,7 @@
 
     /**
      * Synthesizes an authentic Tibetan Singing Bowl sound using multi-harmonic sine waves,
-     * amplitude envelope decay, and pitch LFO vibrato. Volume boosted 40%.
+     * low-pass filtering, and dynamic compression for a 100% smooth, warm, and rounded tone without clipping.
      */
     function playSingingBowl(pitchRatio = 1.0) {
       ensureAudioUnlocked(() => {
@@ -663,20 +663,36 @@
           if (!ctx || ctx.state !== 'running') return;
           const now = ctx.currentTime;
 
-          // Master Gain (boosted 40%+)
+          // Dynamics Compressor & Lowpass Filter for 100% round, smooth, distortion-free sound
+          const compressor = ctx.createDynamicsCompressor();
+          compressor.threshold.setValueAtTime(-6, now);
+          compressor.knee.setValueAtTime(12, now);
+          compressor.ratio.setValueAtTime(8, now);
+          compressor.attack.setValueAtTime(0.003, now);
+          compressor.release.setValueAtTime(0.25, now);
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(1400, now);
+          filter.Q.setValueAtTime(1.0, now);
+
           const masterGain = ctx.createGain();
           masterGain.gain.setValueAtTime(1.0, now);
-          masterGain.connect(ctx.destination);
 
-          // Fundamental frequency for deep meditative tone
+          // Connect nodes: Oscillators -> MasterGain -> LowpassFilter -> Compressor -> Destination
+          masterGain.connect(filter);
+          filter.connect(compressor);
+          compressor.connect(ctx.destination);
+
+          // Deep fundamental frequency (216 Hz)
           const fundamental = 216 * pitchRatio;
 
-          // Harmonics array: [freq_multiplier, gain_weight, decay_sec] (boosted volume)
+          // Harmonics array for a round, warm Tibetan singing bowl: [freq_multiplier, gain_weight, decay_sec]
           const harmonics = [
-            [1.0,   1.40, 6.0], // Fundamental
-            [2.76,  0.56, 5.0], // 2nd Partial
-            [5.40,  0.28, 4.0], // 3rd Partial
-            [8.90,  0.11, 3.0]  // Metallic shimmer
+            [1.0,   0.90, 6.0], // Fundamental (Warm, deep body)
+            [2.76,  0.35, 5.0], // Warm overtone
+            [5.40,  0.15, 3.8], // Subtle metallic resonance
+            [8.90,  0.05, 2.5]  // Soft shimmer
           ];
 
           harmonics.forEach(([mult, gainVal, decaySec]) => {
@@ -686,18 +702,18 @@
             osc.type = 'sine';
             osc.frequency.setValueAtTime(fundamental * mult, now);
 
-            // Subtle pitch vibrato
+            // Smooth vibrato LFO
             const lfo = ctx.createOscillator();
             const lfoGain = ctx.createGain();
-            lfo.frequency.setValueAtTime(3.5, now);
-            lfoGain.gain.setValueAtTime(fundamental * mult * 0.003, now);
+            lfo.frequency.setValueAtTime(3.2, now);
+            lfoGain.gain.setValueAtTime(fundamental * mult * 0.0025, now);
             lfo.connect(osc.frequency);
             lfo.start(now);
             lfo.stop(now + decaySec);
 
-            // Envelope: Instant strike attack then exponential decay (volume boosted)
-            gainNode.gain.setValueAtTime(0.001, now);
-            gainNode.gain.linearRampToValueAtTime(gainVal * 0.7, now + 0.03);
+            // Smooth attack ramp (0.05s) to eliminate pops, followed by exponential decay
+            gainNode.gain.setValueAtTime(0.0001, now);
+            gainNode.gain.linearRampToValueAtTime(gainVal, now + 0.05);
             gainNode.gain.exponentialRampToValueAtTime(0.0001, now + decaySec);
 
             osc.connect(gainNode);
@@ -793,9 +809,7 @@
         iframe.setAttribute('referrerpolicy', 'origin');
         iframe.setAttribute('referrerPolicy', 'origin');
       }
-      if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
-        ytPlayer.setVolume(ytVolume);
-      }
+      applyYouTubeVolume();
       renderPlaylistUI();
     }
 
@@ -1471,6 +1485,29 @@
 
       document.getElementById('toggleYtDrawerBtn').addEventListener('click', toggleDrawer);
       document.getElementById('closeYtDrawerBtn').addEventListener('click', toggleDrawer);
+
+      // --- Cyclic Controls & Input Event Handlers ---
+      function updateCyclicFromInputs() {
+        const m = parseInt(document.getElementById('cyclicMinInput').value) || 0;
+        const s = parseInt(document.getElementById('cyclicSecInput').value) || 0;
+        const rounds = parseInt(document.getElementById('cyclicRoundsInput').value) || 1;
+
+        cyclicSingleDuration = Math.max(1, (m * 60) + s);
+        cyclicTotalRounds = Math.max(1, rounds);
+
+        if (!cyclicIsRunning) {
+          cyclicRemainingSeconds = cyclicSingleDuration;
+          updateCyclicUI();
+        }
+      }
+
+      ['cyclicMinInput', 'cyclicSecInput', 'cyclicRoundsInput'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('input', updateCyclicFromInputs);
+          el.addEventListener('change', updateCyclicFromInputs);
+        }
+      });
 
       // Hand Position Starting Selector Events
       document.getElementById('cyclicJumpFirstBtn').addEventListener('click', () => {
