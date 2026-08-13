@@ -590,10 +590,40 @@
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         audioCtx = new AudioContextClass();
       }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
       return audioCtx;
+    }
+
+    /**
+     * Unlocks Web Audio API on iOS Safari / Android Chrome using user gesture
+     */
+    function ensureAudioUnlocked(callback) {
+      const ctx = getAudioContext();
+      if (!ctx) {
+        if (callback) callback();
+        return;
+      }
+
+      if (ctx.state === 'suspended') {
+        // Play silent 1-sample buffer to unlock iOS Safari hardware audio channel
+        try {
+          const buffer = ctx.createBuffer(1, 1, 22050);
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          source.start(0);
+        } catch (e) {
+          // ignore
+        }
+
+        ctx.resume().then(() => {
+          if (callback) callback();
+        }).catch(err => {
+          console.warn("Audio Context resume failed:", err);
+          if (callback) callback();
+        });
+      } else {
+        if (callback) callback();
+      }
     }
 
     /**
@@ -601,57 +631,60 @@
      * amplitude envelope decay, and pitch LFO vibrato.
      */
     function playSingingBowl(pitchRatio = 1.0) {
-      try {
-        const ctx = getAudioContext();
-        const now = ctx.currentTime;
+      ensureAudioUnlocked(() => {
+        try {
+          const ctx = getAudioContext();
+          if (!ctx || ctx.state !== 'running') return;
+          const now = ctx.currentTime;
 
-        // Master Gain
-        const masterGain = ctx.createGain();
-        masterGain.gain.setValueAtTime(0.6, now);
-        masterGain.connect(ctx.destination);
+          // Master Gain
+          const masterGain = ctx.createGain();
+          masterGain.gain.setValueAtTime(0.7, now);
+          masterGain.connect(ctx.destination);
 
-        // Fundamental frequency for deep meditative tone (e.g. 216Hz or 288Hz)
-        const fundamental = 216 * pitchRatio;
+          // Fundamental frequency for deep meditative tone (e.g. 216Hz or 288Hz)
+          const fundamental = 216 * pitchRatio;
 
-        // Harmonics array for rich brassy singing bowl resonance: [freq_multiplier, gain_weight, decay_sec]
-        const harmonics = [
-          [1.0,   1.0,  5.5], // Fundamental
-          [2.76,  0.4,  4.5], // 2nd Partial (overtone)
-          [5.40,  0.2,  3.5], // 3rd Partial
-          [8.90,  0.08, 2.5]  // Metallic shimmer
-        ];
+          // Harmonics array for rich brassy singing bowl resonance: [freq_multiplier, gain_weight, decay_sec]
+          const harmonics = [
+            [1.0,   1.0,  5.5], // Fundamental
+            [2.76,  0.4,  4.5], // 2nd Partial (overtone)
+            [5.40,  0.2,  3.5], // 3rd Partial
+            [8.90,  0.08, 2.5]  // Metallic shimmer
+          ];
 
-        harmonics.forEach(([mult, gainVal, decaySec]) => {
-          const osc = ctx.createOscillator();
-          const gainNode = ctx.createGain();
+          harmonics.forEach(([mult, gainVal, decaySec]) => {
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
 
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(fundamental * mult, now);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(fundamental * mult, now);
 
-          // Subtle pitch vibrato (hand-hammered bowl resonance)
-          const lfo = ctx.createOscillator();
-          const lfoGain = ctx.createGain();
-          lfo.frequency.setValueAtTime(3.5, now); // 3.5 Hz pulse
-          lfoGain.gain.setValueAtTime(fundamental * mult * 0.003, now);
-          lfo.connect(osc.frequency);
-          lfo.start(now);
-          lfo.stop(now + decaySec);
+            // Subtle pitch vibrato (hand-hammered bowl resonance)
+            const lfo = ctx.createOscillator();
+            const lfoGain = ctx.createGain();
+            lfo.frequency.setValueAtTime(3.5, now); // 3.5 Hz pulse
+            lfoGain.gain.setValueAtTime(fundamental * mult * 0.003, now);
+            lfo.connect(osc.frequency);
+            lfo.start(now);
+            lfo.stop(now + decaySec);
 
-          // Envelope: Instant strike attack then exponential decay
-          gainNode.gain.setValueAtTime(0.001, now);
-          gainNode.gain.linearRampToValueAtTime(gainVal * 0.5, now + 0.03);
-          gainNode.gain.exponentialRampToValueAtTime(0.0001, now + decaySec);
+            // Envelope: Instant strike attack then exponential decay
+            gainNode.gain.setValueAtTime(0.001, now);
+            gainNode.gain.linearRampToValueAtTime(gainVal * 0.5, now + 0.03);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, now + decaySec);
 
-          osc.connect(gainNode);
-          gainNode.connect(masterGain);
+            osc.connect(gainNode);
+            gainNode.connect(masterGain);
 
-          osc.start(now);
-          osc.stop(now + decaySec);
-        });
+            osc.start(now);
+            osc.stop(now + decaySec);
+          });
 
-      } catch (err) {
-        console.warn("Audio playback failed:", err);
-      }
+        } catch (err) {
+          console.warn("Audio playback failed:", err);
+        }
+      });
     }
 
 
@@ -1321,12 +1354,35 @@
         });
       });
 
-      // --- Audio Test Button ---
-      document.getElementById('testAudioBtn').addEventListener('click', () => {
-        getAudioContext();
-        playSingingBowl(1.0);
-        showToast('🔊 頌缽聲音測試 (Web Audio API)');
-      });
+      // Unlock AudioContext on first touch/click anywhere on mobile
+      const unlockOnFirstTouch = () => {
+        ensureAudioUnlocked();
+        document.removeEventListener('touchstart', unlockOnFirstTouch);
+        document.removeEventListener('click', unlockOnFirstTouch);
+      };
+      document.addEventListener('touchstart', unlockOnFirstTouch, { passive: true });
+      document.addEventListener('click', unlockOnFirstTouch, { passive: true });
+
+      // --- Audio Test Button (Mobile Touch & Click Handled) ---
+      const testAudioBtn = document.getElementById('testAudioBtn');
+      let isTestAudioFiring = false;
+
+      const runAudioTest = (e) => {
+        if (e) {
+          if (e.type === 'touchstart') isTestAudioFiring = true;
+          if (e.type === 'click' && isTestAudioFiring) {
+            isTestAudioFiring = false;
+            return;
+          }
+        }
+        ensureAudioUnlocked(() => {
+          playSingingBowl(1.0);
+          showToast('🔊 頌缽聲音測試 (Web Audio API)');
+        });
+      };
+
+      testAudioBtn.addEventListener('touchstart', runAudioTest, { passive: true });
+      testAudioBtn.addEventListener('click', runAudioTest);
 
       // --- YouTube Drawer Toggle ---
       const ytDrawerPanel = document.getElementById('ytDrawerPanel');
