@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>藥光療癒練習小工具 - Medicine Light Practice Tool</title>
+  
+  <!-- SEO & Meta -->
+  <meta name="description" content="典雅暗金風格的藥光療癒練習小工具，結合碼錶、一般倒數與26輪循環計時，內建 Web Audio API 磬聲音效與藥光之音 YouTube 播放器。">
+  <meta name="theme-color" content="#0B0C10">
+
+  <!-- Google Fonts: Noto Serif TC (Serif Titles), Outfit & Cinzel (Modern & Zen Numbers) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Noto+Serif+TC:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            zen: {
+              bg: '#0B0C10',
+              card: '#141722',
+              cardBorder: 'rgba(212, 175, 55, 0.18)',
+              gold: '#D4AF37',
+              goldLight: '#F3E5AB',
+              goldDark: '#997A35',
+              accent: '#C5A059',
+              amberGlow: 'rgba(212, 175, 55, 0.15)',
+              textMuted: '#94A3B8'
+            }
+          },
+          fontFamily: {
+            serif: ['"Noto Serif TC"', 'serif'],
+            sans: ['Outfit', 'sans-serif'],
+            cinzel: ['Cinzel', 'serif']
+          },
+          boxShadow: {
+            'gold-glow': '0 0 25px rgba(212, 175, 55, 0.25)',
+            'gold-glow-lg': '0 0 45px rgba(212, 175, 55, 0.35)',
+            'inner-gold': 'inset 0 0 15px rgba(212, 175, 55, 0.15)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Custom Zen Scrollbars & Glassmorphism */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0c10;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2a2e3d;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #c5a059;
+    }
+
+    /* Ambient Background Glow Particles */
+    .bg-zen-gradient {
+      background: radial-gradient(circle at 50% 20%, #1a1e2d 0%, #0b0c10 70%);
+    }
+
+    /* Breathing Gold Ring Animation */
+    @keyframes goldPulse {
+      0%, 100% {
+        box-shadow: 0 0 20px rgba(212, 175, 55, 0.2), inset 0 0 15px rgba(212, 175, 55, 0.1);
+      }
+      50% {
+        box-shadow: 0 0 40px rgba(212, 175, 55, 0.45), inset 0 0 25px rgba(212, 175, 55, 0.25);
+      }
+    }
+
+    .animate-gold-pulse {
+      animation: goldPulse 4s infinite ease-in-out;
+    }
+
+    /* Active Tab Glow */
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(153, 122, 53, 0.1) 100%);
+      border-color: #D4AF37;
+      color: #F3E5AB;
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+    }
+
+    /* Progress Circle SVG transition */
+    .progress-ring__circle {
+      transition: stroke-dashoffset 0.35s ease-in-out;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+  </style>
+</head>
+<body class="bg-zen-gradient text-slate-100 min-h-screen font-sans flex flex-col justify-between selection:bg-amber-500/30 selection:text-amber-200 antialiased overflow-x-hidden">
+
+  <!-- Header / Navigation Bar -->
+  <header class="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-zen-cardBorder px-4 py-3 sm:px-8">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      
+      <!-- Brand Logo & Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 via-amber-600 to-amber-900 p-0.5 shadow-gold-glow flex items-center justify-center">
+          <div class="w-full h-full bg-zen-bg rounded-full flex items-center justify-center">
+            <i data-lucide="bell" class="w-5 h-5 text-zen-gold"></i>
+          </div>
+        </div>
+        <div>
+          <h1 class="font-serif font-bold text-xl sm:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-amber-500 tracking-wider">
+            藥光療癒練習小工具 <span class="text-xs font-sans text-amber-400/70 uppercase tracking-widest font-normal ml-1">Medicine Light Practice Tool</span>
+          </h1>
+          <p class="text-xs text-zen-textMuted hidden sm:block">小小計時器，讓藥光陪你練習每一天</p>
+        </div>
+      </div>
+
+      <!-- Header Action Controls & Status Badges -->
+      <div class="flex items-center gap-2 sm:gap-4">
+        
+        <!-- Screen Wake Lock Status Badge -->
+        <div id="wakeLockStatus" class="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-900 border border-slate-800 text-slate-400 transition-all duration-300">
+          <i data-lucide="sun" class="w-3.5 h-3.5"></i>
+          <span id="wakeLockText">防休眠關閉</span>
+        </div>
+
+        <!-- Test Audio Button -->
+        <button id="testAudioBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all active:scale-95 cursor-pointer" title="點擊測試頌缽音效">
+          <i data-lucide="volume-2" class="w-4 h-4"></i>
+          <span class="hidden xs:inline">測試磬聲</span>
+        </button>
+
+        <!-- YouTube Toggle Drawer Button -->
+        <button id="toggleYtDrawerBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all active:scale-95 cursor-pointer">
+          <i data-lucide="youtube" class="w-4 h-4 text-red-400"></i>
+          <span>音樂播放器</span>
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-6xl mx-auto px-4 py-6 w-full flex-grow flex flex-col gap-6">
+
+    <!-- Mode Selector Tabs -->
+    <div class="flex justify-center">
+      <div class="bg-zen-card/80 p-1.5 rounded-2xl border border-zen-cardBorder backdrop-blur-md flex gap-1 sm:gap-2 w-full max-w-lg shadow-xl">
+        <button data-tab="cyclic" class="tab-btn active flex-1 py-2.5 px-3 rounded-xl font-serif text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
+          <i data-lucide="repeat" class="w-4 h-4 text-amber-400"></i>
+          <span>循環倒數</span>
+        </button>
+        <button data-tab="countdown" class="tab-btn flex-1 py-2.5 px-3 rounded-xl font-serif text-sm font-medium border border-transparent text-slate-400 hover:text-slate-200 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
+          <i data-lucide="hourglass" class="w-4 h-4"></i>
+          <span>一般倒數</span>
+        </button>
+        <button data-tab="stopwatch" class="tab-btn flex-1 py-2.5 px-3 rounded-xl font-serif text-sm font-medium border border-transparent text-slate-400 hover:text-slate-200 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
+          <i data-lucide="timer" class="w-4 h-4"></i>
+          <span>碼錶計時</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Layout Grid: Left / Center Main Timer Area & Right YouTube Drawer (Responsive) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- MAIN TIMER COLUMN (Spans full or 8 cols when YT drawer open) -->
+      <div id="timerMainColumn" class="lg:col-span-12 transition-all duration-500 flex flex-col items-center gap-6">
+
+        <!-- ================= MODE 1: CYCLIC TIMER (循環倒數) ================= -->
+        <section id="cyclicSection" class="w-full max-w-2xl flex flex-col items-center gap-6">
+          
+          <!-- Practice Prompt Card (當前與下一輪提示卡) -->
+          <div class="w-full bg-slate-900/90 border border-zen-cardBorder rounded-2xl p-5 sm:p-6 shadow-2xl backdrop-blur-md relative overflow-hidden group">
+            <div class="absolute -right-12 -top-12 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all duration-500"></div>
+            
+            <div class="flex items-center justify-between text-xs text-amber-400/80 mb-3 uppercase tracking-widest font-mono">
+              <span class="flex items-center gap-1.5 font-sans font-semibold">
+                <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+                藥光手位 / 輪次提醒
+              </span>
+              <span id="cyclicRoundBadge" class="bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full font-sans font-bold text-xs border border-amber-500/30">
+                第 1 / 26 輪
+              </span>
+            </div>
+
+            <!-- Current Prompt Text Display -->
+            <div class="min-h-[90px] flex items-center justify-center text-center py-2">
+              <p id="cyclicCurrentText" class="font-serif text-xl sm:text-2xl md:text-3xl text-amber-100 font-semibold leading-relaxed tracking-wide transition-all duration-300">
+                1. 頂輪＋左腦
+              </p>
+            </div>
+
+            <!-- Next Prompt Preview -->
+            <div class="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+              <span class="text-slate-500">下一輪預告:</span>
+              <span id="cyclicNextText" class="text-slate-300 font-serif truncate max-w-[80%] text-right">
+                2. 頂輪＋右腦
+              </span>
+            </div>
+          </div>
+
+          <!-- Circular Ring Timer Display -->
+          <div class="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center my-2">
+            <!-- SVG Progress Circle -->
+            <svg class="w-full h-full -rotate-90 filter drop-shadow-gold-glow" viewBox="0 0 260 260">
+              <!-- Background Circle -->
+              <circle cx="130" cy="130" r="115" stroke="rgba(255, 255, 255, 0.05)" stroke-width="12" fill="none"/>
+              <!-- Active Progress Arc -->
+              <circle id="cyclicProgressRing" class="progress-ring__circle" cx="130" cy="130" r="115" 
+                      stroke="url(#goldGradient)" stroke-width="12" stroke-dasharray="722.56" stroke-dashoffset="0" stroke-linecap="round" fill="none"/>
+              <!-- SVG Gradient definition -->
+              <defs>
+                <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#F3E5AB" />
+                  <stop offset="50%" stop-color="#D4AF37" />
+                  <stop offset="100%" stop-color="#997A35" />
+                </linearGradient>
+              </defs>
+            </svg>
+
+            <!-- Inner Timer Content -->
+            <div class="absolute flex flex-col items-center justify-center text-center">
+              <span class="text-xs uppercase tracking-widest text-slate-400 font-medium mb-1">當前單輪剩餘</span>
+              <div id="cyclicTimeDisplay" class="font-cinzel text-5xl sm:text-6xl font-bold text-amber-100 tracking-wider">
+                02:00
+              </div>
+              <div class="mt-2 text-xs text-amber-400/70 font-mono flex items-center gap-1">
+                <span>總剩餘:</span>
+                <span id="cyclicTotalTimeDisplay" class="font-bold text-slate-300">52:00</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls Bar -->
+          <div class="flex items-center gap-4">
+            <button id="cyclicStartBtn" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-300 text-slate-950 font-bold flex items-center justify-center shadow-gold-glow hover:scale-105 active:scale-95 transition-all cursor-pointer">
+              <i data-lucide="play" class="w-8 h-8 fill-slate-950 ml-1" id="cyclicStartIcon"></i>
+            </button>
+            <button id="cyclicResetBtn" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center border border-slate-700 transition-all active:scale-95 cursor-pointer" title="重置計時">
+              <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+            </button>
+          </div>
+
+          <!-- Parameters & Custom Text Settings Panel (Accordion Card) -->
+          <div class="w-full bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur-sm">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+              <h3 class="font-serif font-semibold text-amber-300 flex items-center gap-2 text-sm sm:text-base">
+                <i data-lucide="sliders" class="w-4 h-4"></i>
+                循環參數與提醒文字設定
+              </h3>
+              <button id="cyclicPresetDropdownBtn" class="text-xs text-amber-400 hover:underline flex items-center gap-1">
+                <i data-lucide="wand2" class="w-3.5 h-3.5"></i> 載入預設範本
+              </button>
+            </div>
+
+            <!-- Parameters Inputs -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">單輪時間 (分 : 秒)</label>
+                <div class="flex gap-2">
+                  <input type="number" id="cyclicMinInput" min="0" max="180" value="2" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-center text-amber-200 font-bold focus:border-amber-500 outline-none">
+                  <span class="self-center font-bold text-slate-500">:</span>
+                  <input type="number" id="cyclicSecInput" min="0" max="59" value="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-center text-amber-200 font-bold focus:border-amber-500 outline-none">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">總循環次數 (預設 26 次)</label>
+                <input type="number" id="cyclicRoundsInput" min="1" max="999" value="26" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-center text-amber-200 font-bold focus:border-amber-500 outline-none">
+              </div>
+            </div>
+
+            <!-- Custom Prompts Textarea -->
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1 flex justify-between">
+                <span>每輪對應提醒文字 (一行代表一輪)</span>
+                <span id="promptLineCount" class="text-slate-500 text-[11px]">共 26 行</span>
+              </label>
+              <textarea id="cyclicPromptsTextarea" rows="6" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 font-serif leading-relaxed focus:border-amber-500/80 outline-none resize-y" placeholder="請在此輸入或貼上提醒文字，每行代表一輪..."></textarea>
+            </div>
+
+            <div class="mt-4 flex justify-end">
+              <button id="saveCyclicSettingsBtn" class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer">
+                <i data-lucide="check" class="w-4 h-4"></i>
+                儲存並更新提示清單
+              </button>
+            </div>
+          </div>
+
+        </section>
+
+
+        <!-- ================= MODE 2: COUNTDOWN TIMER (一般倒數計時) ================= -->
+        <section id="countdownSection" class="w-full max-w-2xl flex flex-col items-center gap-6 hidden">
+          
+          <!-- Circular Ring Timer Display -->
+          <div class="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center my-4">
+            <svg class="w-full h-full -rotate-90 filter drop-shadow-gold-glow" viewBox="0 0 260 260">
+              <circle cx="130" cy="130" r="115" stroke="rgba(255, 255, 255, 0.05)" stroke-width="12" fill="none"/>
+              <circle id="cdProgressRing" class="progress-ring__circle" cx="130" cy="130" r="115" 
+                      stroke="url(#goldGradient)" stroke-width="12" stroke-dasharray="722.56" stroke-dashoffset="0" stroke-linecap="round" fill="none"/>
+            </svg>
+
+            <div class="absolute flex flex-col items-center justify-center text-center">
+              <span class="text-xs uppercase tracking-widest text-slate-400 font-medium mb-1">倒數計時</span>
+              <div id="cdTimeDisplay" class="font-cinzel text-5xl sm:text-6xl font-bold text-amber-100 tracking-wider">
+                15:00
+              </div>
+              <span id="cdStatusText" class="text-xs text-amber-400/80 mt-2 font-serif">靜心準備</span>
+            </div>
+          </div>
+
+          <!-- Quick Preset Buttons -->
+          <div class="flex flex-wrap justify-center gap-2 max-w-md">
+            <button data-cd-preset="3" class="cd-preset-btn px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-xs font-medium text-amber-200 border border-slate-700 transition-all">3 分鐘</button>
+            <button data-cd-preset="5" class="cd-preset-btn px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-xs font-medium text-amber-200 border border-slate-700 transition-all">5 分鐘</button>
+            <button data-cd-preset="10" class="cd-preset-btn px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-xs font-medium text-amber-200 border border-slate-700 transition-all">10 分鐘</button>
+            <button data-cd-preset="15" class="cd-preset-btn px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-xs font-medium text-amber-200 border border-slate-700 transition-all">15 分鐘</button>
+            <button data-cd-preset="30" class="cd-preset-btn px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-xs font-medium text-amber-200 border border-slate-700 transition-all">30 分鐘</button>
+            <button data-cd-preset="45" class="cd-preset-btn px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-xs font-medium text-amber-200 border border-slate-700 transition-all">45 分鐘</button>
+            <button data-cd-preset="60" class="cd-preset-btn px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-xs font-medium text-amber-200 border border-slate-700 transition-all">60 分鐘</button>
+          </div>
+
+          <!-- Time Input Inputs -->
+          <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center justify-center gap-3">
+            <div class="text-center">
+              <label class="block text-[11px] text-slate-500 mb-1">小時</label>
+              <input type="number" id="cdHours" min="0" max="23" value="0" class="w-16 bg-slate-950 border border-slate-700 rounded-lg p-2 text-center text-amber-200 font-bold outline-none">
+            </div>
+            <span class="font-bold text-slate-600 self-end mb-2">:</span>
+            <div class="text-center">
+              <label class="block text-[11px] text-slate-500 mb-1">分鐘</label>
+              <input type="number" id="cdMinutes" min="0" max="59" value="15" class="w-16 bg-slate-950 border border-slate-700 rounded-lg p-2 text-center text-amber-200 font-bold outline-none">
+            </div>
+            <span class="font-bold text-slate-600 self-end mb-2">:</span>
+            <div class="text-center">
+              <label class="block text-[11px] text-slate-500 mb-1">秒數</label>
+              <input type="number" id="cdSeconds" min="0" max="59" value="0" class="w-16 bg-slate-950 border border-slate-700 rounded-lg p-2 text-center text-amber-200 font-bold outline-none">
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <div class="flex items-center gap-4">
+            <button id="cdStartBtn" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-300 text-slate-950 font-bold flex items-center justify-center shadow-gold-glow hover:scale-105 active:scale-95 transition-all cursor-pointer">
+              <i data-lucide="play" class="w-8 h-8 fill-slate-950 ml-1" id="cdStartIcon"></i>
+            </button>
+            <button id="cdResetBtn" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center border border-slate-700 transition-all active:scale-95 cursor-pointer" title="重置計時">
+              <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+            </button>
+          </div>
+
+        </section>
+
+
+        <!-- ================= MODE 3: STOPWATCH (碼錶計時) ================= -->
+        <section id="stopwatchSection" class="w-full max-w-2xl flex flex-col items-center gap-6 hidden">
+          
+          <!-- Stopwatch Big Display -->
+          <div class="w-full bg-slate-900/60 border border-slate-800 rounded-3xl p-8 sm:p-12 text-center shadow-2xl relative overflow-hidden">
+            <div class="absolute inset-0 bg-amber-500/5 blur-3xl rounded-full"></div>
+            <span class="text-xs uppercase tracking-widest text-slate-400 font-medium mb-2 block">碼錶計時</span>
+            
+            <div id="swTimeDisplay" class="font-cinzel text-5xl sm:text-7xl font-bold text-amber-100 tracking-wider my-2">
+              00:00:00<span class="text-2xl sm:text-3xl text-amber-400/80 font-normal">.00</span>
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <div class="flex items-center gap-4">
+            <button id="swStartBtn" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-300 text-slate-950 font-bold flex items-center justify-center shadow-gold-glow hover:scale-105 active:scale-95 transition-all cursor-pointer">
+              <i data-lucide="play" class="w-8 h-8 fill-slate-950 ml-1" id="swStartIcon"></i>
+            </button>
+            <button id="swLapBtn" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center border border-slate-700 transition-all active:scale-95 cursor-pointer" title="計圈 (Lap)">
+              <i data-lucide="flag" class="w-5 h-5"></i>
+            </button>
+            <button id="swResetBtn" class="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center border border-slate-700 transition-all active:scale-95 cursor-pointer" title="重置碼錶">
+              <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+            </button>
+          </div>
+
+          <!-- Lap List Card -->
+          <div class="w-full bg-slate-900/60 border border-slate-800 rounded-2xl p-4 max-h-64 overflow-y-auto">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800 text-xs text-slate-400 font-medium">
+              <span>圈數 (# Lap)</span>
+              <span>分段時間 (Split)</span>
+              <span>總時間 (Total)</span>
+            </div>
+            <div id="swLapList" class="divide-y divide-slate-800/60 text-xs sm:text-sm font-mono">
+              <div class="py-3 text-center text-slate-500 font-sans">尚無計圈紀錄</div>
+            </div>
+          </div>
+
+        </section>
+
+      </div>
+
+
+      <!-- YOUTUBE PLAYER DRAWER / PANEL (Collapsible or Side Panel) -->
+      <div id="ytDrawerPanel" class="lg:col-span-4 w-full bg-slate-900/90 border border-zen-cardBorder rounded-2xl p-5 shadow-2xl backdrop-blur-md hidden transition-all duration-500">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+          <h2 class="font-serif font-bold text-amber-200 flex items-center gap-2 text-base">
+            <i data-lucide="youtube" class="w-5 h-5 text-red-500"></i>
+            藥光之音 / YouTube 播放器
+          </h2>
+          <button id="closeYtDrawerBtn" class="text-slate-400 hover:text-slate-200 transition-all p-1">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Timer Linkage Checkbox Switch -->
+        <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i data-lucide="link" class="w-4 h-4 text-amber-400"></i>
+            <label for="ytTimerSyncToggle" class="text-xs font-medium text-amber-200 cursor-pointer">
+              計時啟動/暫停時同步連動
+            </label>
+          </div>
+          <input type="checkbox" id="ytTimerSyncToggle" checked class="w-4 h-4 accent-amber-500 cursor-pointer">
+        </div>
+
+        <!-- Embedded YouTube IFrame Container -->
+        <div class="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-inner mb-4 relative">
+          <!-- Embedded iframe with referrerpolicy="origin" -->
+          <iframe id="youtube-player" 
+                  src="https://www.youtube.com/embed/5GABTf7b98w?enablejsapi=1" 
+                  referrerpolicy="origin" 
+                  referrerPolicy="origin" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                  allowfullscreen 
+                  class="w-full h-full border-0">
+          </iframe>
+        </div>
+
+        <!-- Volume Control Slider -->
+        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 mb-4 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2 text-xs text-amber-200 font-medium shrink-0">
+            <button id="ytMuteBtn" class="text-amber-400 hover:text-amber-300 cursor-pointer">
+              <i data-lucide="volume-2" id="ytVolumeIcon" class="w-4 h-4"></i>
+            </button>
+            <span>音樂音量</span>
+          </div>
+          <input type="range" id="ytVolumeSlider" min="0" max="100" value="80" class="w-full h-1.5 bg-slate-800 rounded-lg accent-amber-500 cursor-pointer">
+          <span id="ytVolumeValue" class="text-xs font-mono text-amber-400 w-8 text-right">80%</span>
+        </div>
+
+        <!-- Add Track Form -->
+        <div class="mb-4">
+          <label class="block text-xs font-medium text-slate-400 mb-1">新增 YouTube 影片 (貼上網址或 ID)</label>
+          <div class="flex gap-2">
+            <input type="text" id="ytUrlInput" placeholder="https://www.youtube.com/watch?v=..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-amber-500">
+            <button id="addYtBtn" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs transition-all flex items-center gap-1 shrink-0 cursor-pointer">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              新增
+            </button>
+          </div>
+        </div>
+
+        <!-- Loop Options & Clear -->
+        <div class="flex items-center justify-between mb-3 text-xs">
+          <div class="flex items-center gap-2 text-slate-400">
+            <span>循環模式:</span>
+            <select id="ytLoopSelect" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-amber-300 outline-none">
+              <option value="single" selected>單曲循環</option>
+              <option value="playlist">整份清單循環</option>
+              <option value="none">不循環</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Playlist Items List -->
+        <div id="ytPlaylistContainer" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+          <!-- Dynamically filled items -->
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="mt-8 border-t border-slate-900 py-4 px-4 text-center text-xs text-slate-600">
+    <p>禪韻 Zen Timer &copy; 2026. 身心安住 · 寧靜致遠.</p>
+  </footer>
+
+  <!-- Notification Toast Modal -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 border border-amber-500/40 text-amber-200 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3">
+    <i data-lucide="bell" class="w-5 h-5 text-amber-400"></i>
+    <span id="toastMsg" class="text-xs font-serif font-medium">通知訊息</span>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    /* ==========================================================================
+       1. GLOBAL STATE & DEFAULT DATA
+       ========================================================================== */
+    
+    // Default 26 Medicine Light Hand Position Prompts (預設 26 項藥光手位說明)
+    const DEFAULT_PROMPTS = [
+      "1. 頂輪＋左腦",
+      "2. 頂輪＋右腦",
+      "3. 左腦＋右腦",
+      "4. 拇指太陽⽳ ＋ 掌蓋雙眼",
+      "5. 咬合肌、鼻翼、人中兩旁、嘴角",
+      "6. 雙⽿",
+      "7. 後腦",
+      "8. 喉部（喉輪）",
+      "9. 肩膀",
+      "10. 胸腺",
+      "11. 心輪",
+      "12. 太陽神經叢",
+      "13. 肝膽脾胃",
+      "14. 臍輪",
+      "15. 海底輪",
+      "16. ⼤腿",
+      "17. 膝蓋",
+      "18. 小腿",
+      "19. 腳踝",
+      "20. 腳掌",
+      "21. 太白、太衝、陷谷、足臨泣、湧泉",
+      "22. 後心輪",
+      "23. 後太陽神經叢",
+      "24. 腎",
+      "25. 骶⾻",
+      "26. 靜坐、靜心"
+    ];
+
+    // Default YouTube Playlist (藥師佛心咒專屬清單)
+    const DEFAULT_PLAYLIST = [
+      { id: '5GABTf7b98w', title: '黃慧音版藥師佛心咒' },
+      { id: 'wrjzRraJklg', title: '穆松古千仁波切版藥師佛心咒' },
+      { id: 'hEjHfv9eNrQ', title: '和緩版藥師佛心咒' }
+    ];
+
+    // State Variables
+    let currentTab = 'cyclic';
+    let wakeLock = null;
+    let audioCtx = null;
+
+    /* --- Cyclic Timer State --- */
+    let cyclicSingleDuration = 120; // 2 mins in seconds
+    let cyclicTotalRounds = 26;
+    let cyclicCurrentRound = 1;
+    let cyclicRemainingSeconds = 120;
+    let cyclicTimerId = null;
+    let cyclicIsRunning = false;
+    let cyclicPromptsList = [...DEFAULT_PROMPTS];
+
+    /* --- Countdown Timer State --- */
+    let cdDuration = 900; // 15 mins
+    let cdRemainingSeconds = 900;
+    let cdTimerId = null;
+    let cdIsRunning = false;
+
+    /* --- Stopwatch State --- */
+    let swStartTime = 0;
+    let swElapsedTime = 0;
+    let swTimerId = null;
+    let swIsRunning = false;
+    let swLaps = [];
+
+    /* --- YouTube Player State --- */
+    let ytPlayer = null;
+    let ytIsReady = false;
+    let ytPlaylist = [...DEFAULT_PLAYLIST];
+    let ytCurrentIndex = 0;
+    let ytLoopMode = 'single'; // Default: Single repeat (單曲循環)
+    let ytTimerSync = true;
+    let ytVolume = 80;
+    let ytIsMuted = false;
+
+
+    /* ==========================================================================
+       2. WEB AUDIO API SYNTHESIZER (SINGING BOWL / 磬聲音效)
+       ========================================================================== */
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    /**
+     * Synthesizes an authentic Tibetan Singing Bowl sound using multi-harmonic sine waves,
+     * amplitude envelope decay, and pitch LFO vibrato.
+     */
+    function playSingingBowl(pitchRatio = 1.0) {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        // Master Gain
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(0.6, now);
+        masterGain.connect(ctx.destination);
+
+        // Fundamental frequency for deep meditative tone (e.g. 216Hz or 288Hz)
+        const fundamental = 216 * pitchRatio;
+
+        // Harmonics array for rich brassy singing bowl resonance: [freq_multiplier, gain_weight, decay_sec]
+        const harmonics = [
+          [1.0,   1.0,  5.5], // Fundamental
+          [2.76,  0.4,  4.5], // 2nd Partial (overtone)
+          [5.40,  0.2,  3.5], // 3rd Partial
+          [8.90,  0.08, 2.5]  // Metallic shimmer
+        ];
+
+        harmonics.forEach(([mult, gainVal, decaySec]) => {
+          const osc = ctx.createOscillator();
+          const gainNode = ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(fundamental * mult, now);
+
+          // Subtle pitch vibrato (hand-hammered bowl resonance)
+          const lfo = ctx.createOscillator();
+          const lfoGain = ctx.createGain();
+          lfo.frequency.setValueAtTime(3.5, now); // 3.5 Hz pulse
+          lfoGain.gain.setValueAtTime(fundamental * mult * 0.003, now);
+          lfo.connect(osc.frequency);
+          lfo.start(now);
+          lfo.stop(now + decaySec);
+
+          // Envelope: Instant strike attack then exponential decay
+          gainNode.gain.setValueAtTime(0.001, now);
+          gainNode.gain.linearRampToValueAtTime(gainVal * 0.5, now + 0.03);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, now + decaySec);
+
+          osc.connect(gainNode);
+          gainNode.connect(masterGain);
+
+          osc.start(now);
+          osc.stop(now + decaySec);
+        });
+
+      } catch (err) {
+        console.warn("Audio playback failed:", err);
+      }
+    }
+
+
+    /* ==========================================================================
+       3. WAKE LOCK API (畫面防休眠)
+       ========================================================================== */
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          updateWakeLockUI(true);
+          wakeLock.addEventListener('release', () => {
+            updateWakeLockUI(false);
+          });
+        } catch (err) {
+          console.warn(`Wake Lock error: ${err.name}, ${err.message}`);
+          updateWakeLockUI(false);
+        }
+      }
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock !== null) {
+        wakeLock.release().then(() => {
+          wakeLock = null;
+          updateWakeLockUI(false);
+        });
+      }
+    }
+
+    function updateWakeLockUI(isActive) {
+      const badge = document.getElementById('wakeLockStatus');
+      const text = document.getElementById('wakeLockText');
+      if (isActive) {
+        badge.classList.remove('hidden', 'bg-slate-900', 'text-slate-400', 'border-slate-800');
+        badge.classList.add('flex', 'bg-amber-500/20', 'text-amber-300', 'border-amber-500/40');
+        text.textContent = '防休眠保護中';
+      } else {
+        badge.classList.remove('bg-amber-500/20', 'text-amber-300', 'border-amber-500/40');
+        badge.classList.add('bg-slate-900', 'text-slate-400', 'border-slate-800');
+        text.textContent = '防休眠關閉';
+      }
+    }
+
+    // Re-acquire lock if user returns to tab
+    document.addEventListener('visibilitychange', async () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        await requestWakeLock();
+      }
+    });
+
+
+    /* ==========================================================================
+       4. YOUTUBE IFRAME PLAYER API INTEGRATION
+       ========================================================================== */
+    window.onYouTubeIframeAPIReady = function() {
+      ytPlayer = new YT.Player('youtube-player', {
+        height: '100%',
+        width: '100%',
+        videoId: ytPlaylist.length > 0 ? ytPlaylist[0].id : '1ZYbU85HI60',
+        host: 'https://www.youtube.com',
+        playerVars: {
+          'playsinline': 1,
+          'controls': 1,
+          'modestbranding': 1,
+          'rel': 0,
+          'origin': window.location.origin || 'https://www.youtube.com'
+        },
+        events: {
+          'onReady': onPlayerReady,
+          'onStateChange': onPlayerStateChange
+        }
+      });
+    };
+
+    function onPlayerReady(event) {
+      ytIsReady = true;
+      const iframe = document.getElementById('youtube-player') || (ytPlayer && ytPlayer.getIframe ? ytPlayer.getIframe() : null);
+      if (iframe) {
+        iframe.setAttribute('referrerpolicy', 'origin');
+        iframe.setAttribute('referrerPolicy', 'origin');
+      }
+      if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
+        ytPlayer.setVolume(ytVolume);
+      }
+      renderPlaylistUI();
+    }
+
+    function onPlayerStateChange(event) {
+      // YT.PlayerState.ENDED = 0
+      if (event.data === YT.PlayerState.ENDED) {
+        handleTrackEnded();
+      }
+    }
+
+    function handleTrackEnded() {
+      if (ytLoopMode === 'single') {
+        ytPlayer.playVideo();
+      } else if (ytLoopMode === 'playlist') {
+        ytCurrentIndex = (ytCurrentIndex + 1) % ytPlaylist.length;
+        playPlaylistItem(ytCurrentIndex);
+      } else {
+        // none
+        if (ytCurrentIndex < ytPlaylist.length - 1) {
+          ytCurrentIndex++;
+          playPlaylistItem(ytCurrentIndex);
+        }
+      }
+    }
+
+    function playPlaylistItem(index) {
+      if (index < 0 || index >= ytPlaylist.length) return;
+      ytCurrentIndex = index;
+      if (ytIsReady && ytPlayer) {
+        ytPlayer.loadVideoById(ytPlaylist[index].id);
+        renderPlaylistUI();
+      }
+    }
+
+    function parseYouTubeId(urlOrId) {
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = urlOrId.match(regExp);
+      return (match && match[2].length === 11) ? match[2] : urlOrId.trim();
+    }
+
+    function editPlaylistItemTitle(idx) {
+      if (idx < 0 || idx >= ytPlaylist.length) return;
+      const currentTitle = ytPlaylist[idx].title;
+      const newTitle = prompt('請修改歌曲名稱：', currentTitle);
+      if (newTitle !== null && newTitle.trim() !== '') {
+        ytPlaylist[idx].title = newTitle.trim();
+        renderPlaylistUI();
+        saveStateToLocalStorage();
+        showToast('已成功更新歌曲名稱！');
+      }
+    }
+
+    let draggedItemIndex = null;
+
+    function renderPlaylistUI() {
+      const container = document.getElementById('ytPlaylistContainer');
+      container.innerHTML = '';
+
+      if (ytPlaylist.length === 0) {
+        container.innerHTML = `<div class="text-center py-4 text-slate-500 text-xs">佇列中無曲目</div>`;
+        return;
+      }
+
+      ytPlaylist.forEach((item, idx) => {
+        const isCurrent = idx === ytCurrentIndex;
+        const div = document.createElement('div');
+        div.draggable = true;
+        div.className = `p-2.5 rounded-xl border transition-all flex items-center justify-between text-xs gap-2 select-none cursor-grab active:cursor-grabbing ${
+          isCurrent 
+            ? 'bg-amber-500/20 border-amber-500/50 text-amber-200 shadow-md' 
+            : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+        }`;
+
+        div.innerHTML = `
+          <div class="flex items-center gap-2 truncate flex-1">
+            <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-500 hover:text-amber-400 shrink-0 cursor-grab active:cursor-grabbing" title="按住拖曳排序"></i>
+            <div class="flex items-center gap-2 truncate cursor-pointer flex-1" onclick="playPlaylistItem(${idx})">
+              <i data-lucide="${isCurrent ? 'disc-3' : 'music'}" class="w-4 h-4 ${isCurrent ? 'text-amber-400 animate-spin' : 'text-slate-500'}"></i>
+              <span class="truncate font-medium">${item.title}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            <button onclick="editPlaylistItemTitle(${idx})" class="p-1 text-slate-400 hover:text-amber-300" title="修改名稱"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
+            ${idx > 0 ? `<button onclick="movePlaylistItem(${idx}, -1)" class="p-1 text-slate-400 hover:text-amber-300" title="上移"><i data-lucide="chevron-up" class="w-3.5 h-3.5"></i></button>` : ''}
+            ${idx < ytPlaylist.length - 1 ? `<button onclick="movePlaylistItem(${idx}, 1)" class="p-1 text-slate-400 hover:text-amber-300" title="下移"><i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>` : ''}
+            <button onclick="removePlaylistItem(${idx})" class="p-1 text-slate-400 hover:text-red-400" title="刪除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+          </div>
+        `;
+
+        // Drag and Drop Event Listeners
+        div.addEventListener('dragstart', (e) => {
+          draggedItemIndex = idx;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', idx);
+          setTimeout(() => div.classList.add('opacity-40', 'border-amber-500/80'), 0);
+        });
+
+        div.addEventListener('dragend', () => {
+          div.classList.remove('opacity-40', 'border-amber-500/80');
+          document.querySelectorAll('#ytPlaylistContainer > div').forEach(el => {
+            el.classList.remove('border-amber-400', 'bg-amber-500/30', 'scale-[1.02]');
+          });
+        });
+
+        div.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          div.classList.add('border-amber-400', 'bg-amber-500/30', 'scale-[1.02]');
+        });
+
+        div.addEventListener('dragleave', () => {
+          div.classList.remove('border-amber-400', 'bg-amber-500/30', 'scale-[1.02]');
+        });
+
+        div.addEventListener('drop', (e) => {
+          e.preventDefault();
+          div.classList.remove('border-amber-400', 'bg-amber-500/30', 'scale-[1.02]');
+          if (draggedItemIndex === null || draggedItemIndex === idx) return;
+
+          // Track currently playing song to preserve active state
+          const currentPlayingItem = ytPlaylist[ytCurrentIndex];
+
+          // Swap / Move element in playlist array
+          const [movedItem] = ytPlaylist.splice(draggedItemIndex, 1);
+          ytPlaylist.splice(idx, 0, movedItem);
+
+          // Update current index to follow the active song
+          if (currentPlayingItem) {
+            ytCurrentIndex = ytPlaylist.indexOf(currentPlayingItem);
+            if (ytCurrentIndex === -1) ytCurrentIndex = 0;
+          }
+
+          draggedItemIndex = null;
+          renderPlaylistUI();
+          saveStateToLocalStorage();
+          showToast('已更新歌曲播放順序');
+        });
+
+        container.appendChild(div);
+      });
+      lucide.createIcons();
+    }
+
+    function movePlaylistItem(idx, direction) {
+      const targetIdx = idx + direction;
+      if (targetIdx < 0 || targetIdx >= ytPlaylist.length) return;
+      const temp = ytPlaylist[idx];
+      ytPlaylist[idx] = ytPlaylist[targetIdx];
+      ytPlaylist[targetIdx] = temp;
+
+      if (ytCurrentIndex === idx) ytCurrentIndex = targetIdx;
+      else if (ytCurrentIndex === targetIdx) ytCurrentIndex = idx;
+
+      renderPlaylistUI();
+      saveStateToLocalStorage();
+    }
+
+    function removePlaylistItem(idx) {
+      ytPlaylist.splice(idx, 1);
+      if (ytCurrentIndex >= ytPlaylist.length) {
+        ytCurrentIndex = Math.max(0, ytPlaylist.length - 1);
+      }
+      renderPlaylistUI();
+      saveStateToLocalStorage();
+    }
+
+    function syncYouTubePlay() {
+      if (ytTimerSync && ytIsReady && ytPlayer && typeof ytPlayer.playVideo === 'function') {
+        ytPlayer.playVideo();
+      }
+    }
+
+    function syncYouTubePause() {
+      if (ytTimerSync && ytIsReady && ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+        ytPlayer.pauseVideo();
+      }
+    }
+
+
+    /* ==========================================================================
+       5. TIMER MODULE LOGIC
+       ========================================================================== */
+
+    /* --- Helper Utilities --- */
+    function formatTime(totalSec) {
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      if (h > 0) {
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      }
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function setCircleProgress(circleElement, percent) {
+      const circumference = 2 * Math.PI * 115; // r=115 -> 722.56
+      const offset = circumference - (percent / 100) * circumference;
+      circleElement.style.strokeDashoffset = offset;
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      toastMsg.textContent = msg;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3500);
+    }
+
+    /* --- Mode 1: Cyclic Timer --- */
+    function updateCyclicUI() {
+      // Display current round remaining time
+      document.getElementById('cyclicTimeDisplay').textContent = formatTime(cyclicRemainingSeconds);
+      
+      // Total remaining time
+      const totalRemaining = ((cyclicTotalRounds - cyclicCurrentRound) * cyclicSingleDuration) + cyclicRemainingSeconds;
+      document.getElementById('cyclicTotalTimeDisplay').textContent = formatTime(totalRemaining);
+
+      // Round Badge
+      document.getElementById('cyclicRoundBadge').textContent = `第 ${cyclicCurrentRound} / ${cyclicTotalRounds} 輪`;
+
+      // Circular Ring Progress (Current Round)
+      const percent = (cyclicRemainingSeconds / cyclicSingleDuration) * 100;
+      setCircleProgress(document.getElementById('cyclicProgressRing'), percent);
+
+      // Prompts Card Text
+      const promptIndex = (cyclicCurrentRound - 1) % cyclicPromptsList.length;
+      const nextPromptIndex = cyclicCurrentRound % cyclicPromptsList.length;
+
+      document.getElementById('cyclicCurrentText').textContent = cyclicPromptsList[promptIndex] || `第 ${cyclicCurrentRound} 輪`;
+      
+      if (cyclicCurrentRound < cyclicTotalRounds) {
+        document.getElementById('cyclicNextText').textContent = cyclicPromptsList[nextPromptIndex] || `第 ${cyclicCurrentRound + 1} 輪`;
+      } else {
+        document.getElementById('cyclicNextText').textContent = '這是最後一輪，準備圓滿結尾';
+      }
+    }
+
+    function startCyclicTimer() {
+      if (cyclicIsRunning) {
+        // Pause
+        clearInterval(cyclicTimerId);
+        cyclicIsRunning = false;
+        document.getElementById('cyclicStartIcon').setAttribute('data-lucide', 'play');
+        lucide.createIcons();
+        releaseWakeLock();
+        syncYouTubePause();
+        return;
+      }
+
+      // Start
+      getAudioContext();
+      requestWakeLock();
+      syncYouTubePlay();
+
+      cyclicIsRunning = true;
+      document.getElementById('cyclicStartIcon').setAttribute('data-lucide', 'pause');
+      lucide.createIcons();
+
+      cyclicTimerId = setInterval(() => {
+        if (cyclicRemainingSeconds > 0) {
+          cyclicRemainingSeconds--;
+          updateCyclicUI();
+        } else {
+          // Round Ended!
+          playSingingBowl(1.0); // Ring chime sound
+
+          if (cyclicCurrentRound < cyclicTotalRounds) {
+            cyclicCurrentRound++;
+            cyclicRemainingSeconds = cyclicSingleDuration;
+            updateCyclicUI();
+            showToast(`進入第 ${cyclicCurrentRound} 輪觀想提醒`);
+          } else {
+            // All Rounds Complete!
+            clearInterval(cyclicTimerId);
+            cyclicIsRunning = false;
+            document.getElementById('cyclicStartIcon').setAttribute('data-lucide', 'play');
+            lucide.createIcons();
+            
+            // Double Chime for completion
+            setTimeout(() => playSingingBowl(1.2), 800);
+            
+            releaseWakeLock();
+            syncYouTubePause();
+            showToast('恭喜！全輪次禪修修持圓滿完成！');
+          }
+        }
+      }, 1000);
+    }
+
+    function resetCyclicTimer() {
+      clearInterval(cyclicTimerId);
+      cyclicIsRunning = false;
+      document.getElementById('cyclicStartIcon').setAttribute('data-lucide', 'play');
+      lucide.createIcons();
+
+      cyclicCurrentRound = 1;
+      cyclicRemainingSeconds = cyclicSingleDuration;
+      updateCyclicUI();
+      releaseWakeLock();
+      syncYouTubePause();
+    }
+
+    /* --- Mode 2: Countdown Timer --- */
+    function updateCountdownUI() {
+      document.getElementById('cdTimeDisplay').textContent = formatTime(cdRemainingSeconds);
+      const percent = (cdRemainingSeconds / cdDuration) * 100;
+      setCircleProgress(document.getElementById('cdProgressRing'), percent);
+    }
+
+    function startCountdownTimer() {
+      if (cdIsRunning) {
+        clearInterval(cdTimerId);
+        cdIsRunning = false;
+        document.getElementById('cdStartIcon').setAttribute('data-lucide', 'play');
+        lucide.createIcons();
+        releaseWakeLock();
+        syncYouTubePause();
+        return;
+      }
+
+      if (cdRemainingSeconds <= 0) return;
+
+      getAudioContext();
+      requestWakeLock();
+      syncYouTubePlay();
+
+      cdIsRunning = true;
+      document.getElementById('cdStartIcon').setAttribute('data-lucide', 'pause');
+      document.getElementById('cdStatusText').textContent = '靜心中...';
+      lucide.createIcons();
+
+      cdTimerId = setInterval(() => {
+        if (cdRemainingSeconds > 0) {
+          cdRemainingSeconds--;
+          updateCountdownUI();
+        } else {
+          // Timer finished
+          clearInterval(cdTimerId);
+          cdIsRunning = false;
+          document.getElementById('cdStartIcon').setAttribute('data-lucide', 'play');
+          document.getElementById('cdStatusText').textContent = '倒數結束';
+          lucide.createIcons();
+          
+          playSingingBowl(1.0);
+          setTimeout(() => playSingingBowl(1.3), 1200);
+
+          releaseWakeLock();
+          syncYouTubePause();
+          showToast('倒數計時結束！');
+        }
+      }, 1000);
+    }
+
+    function resetCountdownTimer() {
+      clearInterval(cdTimerId);
+      cdIsRunning = false;
+      document.getElementById('cdStartIcon').setAttribute('data-lucide', 'play');
+      document.getElementById('cdStatusText').textContent = '靜心準備';
+      lucide.createIcons();
+
+      const h = parseInt(document.getElementById('cdHours').value) || 0;
+      const m = parseInt(document.getElementById('cdMinutes').value) || 0;
+      const s = parseInt(document.getElementById('cdSeconds').value) || 0;
+
+      cdDuration = (h * 3600) + (m * 60) + s;
+      cdRemainingSeconds = cdDuration;
+      updateCountdownUI();
+      releaseWakeLock();
+      syncYouTubePause();
+    }
+
+
+    /* --- Mode 3: Stopwatch Timer --- */
+    function formatStopwatchTime(ms) {
+      const totalSec = Math.floor(ms / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      const hundredths = Math.floor((ms % 1000) / 10);
+
+      const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      const hundredthsStr = `.${String(hundredths).padStart(2, '0')}`;
+      return { timeStr, hundredthsStr };
+    }
+
+    function updateStopwatchUI() {
+      const { timeStr, hundredthsStr } = formatStopwatchTime(swElapsedTime);
+      document.getElementById('swTimeDisplay').innerHTML = `${timeStr}<span class="text-2xl sm:text-3xl text-amber-400/80 font-normal">${hundredthsStr}</span>`;
+    }
+
+    function startStopwatchTimer() {
+      if (swIsRunning) {
+        clearInterval(swTimerId);
+        swIsRunning = false;
+        document.getElementById('swStartIcon').setAttribute('data-lucide', 'play');
+        lucide.createIcons();
+        releaseWakeLock();
+        syncYouTubePause();
+        return;
+      }
+
+      getAudioContext();
+      requestWakeLock();
+      syncYouTubePlay();
+
+      swIsRunning = true;
+      swStartTime = Date.now() - swElapsedTime;
+      document.getElementById('swStartIcon').setAttribute('data-lucide', 'pause');
+      lucide.createIcons();
+
+      swTimerId = setInterval(() => {
+        swElapsedTime = Date.now() - swStartTime;
+        updateStopwatchUI();
+      }, 30);
+    }
+
+    function resetStopwatchTimer() {
+      clearInterval(swTimerId);
+      swIsRunning = false;
+      swElapsedTime = 0;
+      swLaps = [];
+      document.getElementById('swStartIcon').setAttribute('data-lucide', 'play');
+      lucide.createIcons();
+
+      updateStopwatchUI();
+      renderLapList();
+      releaseWakeLock();
+      syncYouTubePause();
+    }
+
+    function recordLap() {
+      if (!swIsRunning) return;
+      const lapTime = swElapsedTime;
+      const lastLapTotal = swLaps.length > 0 ? swLaps[swLaps.length - 1].totalTime : 0;
+      const splitTime = lapTime - lastLapTotal;
+
+      swLaps.push({
+        lapNum: swLaps.length + 1,
+        splitTime: splitTime,
+        totalTime: lapTime
+      });
+
+      renderLapList();
+    }
+
+    function renderLapList() {
+      const container = document.getElementById('swLapList');
+      if (swLaps.length === 0) {
+        container.innerHTML = `<div class="py-3 text-center text-slate-500 font-sans">尚無計圈紀錄</div>`;
+        return;
+      }
+
+      container.innerHTML = '';
+      [...swLaps].reverse().forEach((lap) => {
+        const split = formatStopwatchTime(lap.splitTime);
+        const total = formatStopwatchTime(lap.totalTime);
+
+        const div = document.createElement('div');
+        div.className = 'py-2 flex justify-between items-center text-slate-300 border-b border-slate-800/40 last:border-0';
+        div.innerHTML = `
+          <span class="text-amber-400 font-semibold"># ${lap.lapNum}</span>
+          <span>${split.timeStr}${split.hundredthsStr}</span>
+          <span class="text-slate-400">${total.timeStr}${total.hundredthsStr}</span>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+
+    /* ==========================================================================
+       6. LOCAL STORAGE PERSISTENCE
+       ========================================================================== */
+    function saveStateToLocalStorage() {
+      const data = {
+        cyclicSingleDuration,
+        cyclicTotalRounds,
+        cyclicPromptsText: document.getElementById('cyclicPromptsTextarea').value,
+        ytPlaylist,
+        ytTimerSync,
+        ytLoopMode,
+        ytVolume
+      };
+      localStorage.setItem('medicine_light_config_v3', JSON.stringify(data));
+    }
+
+    function loadStateFromLocalStorage() {
+      const saved = localStorage.getItem('medicine_light_config_v3');
+      if (!saved) return;
+      try {
+        const data = JSON.parse(saved);
+        if (data.cyclicSingleDuration) {
+          cyclicSingleDuration = data.cyclicSingleDuration;
+          document.getElementById('cyclicMinInput').value = Math.floor(cyclicSingleDuration / 60);
+          document.getElementById('cyclicSecInput').value = cyclicSingleDuration % 60;
+        }
+        if (data.cyclicTotalRounds) {
+          cyclicTotalRounds = data.cyclicTotalRounds;
+          document.getElementById('cyclicRoundsInput').value = cyclicTotalRounds;
+        }
+        if (data.cyclicPromptsText) {
+          document.getElementById('cyclicPromptsTextarea').value = data.cyclicPromptsText;
+          parsePromptsTextarea();
+        }
+        if (data.ytPlaylist && Array.isArray(data.ytPlaylist) && data.ytPlaylist.length > 0) {
+          ytPlaylist = data.ytPlaylist;
+        }
+        if (typeof data.ytTimerSync === 'boolean') {
+          ytTimerSync = data.ytTimerSync;
+          document.getElementById('ytTimerSyncToggle').checked = ytTimerSync;
+        }
+        if (data.ytLoopMode) {
+          ytLoopMode = data.ytLoopMode;
+          document.getElementById('ytLoopSelect').value = ytLoopMode;
+        }
+        if (typeof data.ytVolume === 'number') {
+          ytVolume = data.ytVolume;
+          document.getElementById('ytVolumeSlider').value = ytVolume;
+          document.getElementById('ytVolumeValue').textContent = `${ytVolume}%`;
+        }
+      } catch (err) {
+        console.warn('Failed to parse localStorage:', err);
+      }
+    }
+
+    function parsePromptsTextarea() {
+      const text = document.getElementById('cyclicPromptsTextarea').value;
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length > 0) {
+        cyclicPromptsList = lines;
+      } else {
+        cyclicPromptsList = [...DEFAULT_PROMPTS];
+      }
+      document.getElementById('promptLineCount').textContent = `共 ${cyclicPromptsList.length} 行`;
+    }
+
+
+    /* ==========================================================================
+       7. EVENT LISTENERS & INITIALIZATION
+       ========================================================================== */
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // Initialize Lucide Icons
+      lucide.createIcons();
+
+      // Load YouTube API Script
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+      // Populate default Prompts Textarea
+      document.getElementById('cyclicPromptsTextarea').value = DEFAULT_PROMPTS.join('\n');
+
+      // Load Local Storage Configuration
+      loadStateFromLocalStorage();
+
+      // Initial UI Sync
+      cyclicRemainingSeconds = cyclicSingleDuration;
+      updateCyclicUI();
+      updateCountdownUI();
+      updateStopwatchUI();
+
+      // --- Tab Switching ---
+      const tabBtns = document.querySelectorAll('.tab-btn');
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+
+          const tabMode = btn.getAttribute('data-tab');
+          currentTab = tabMode;
+
+          document.getElementById('cyclicSection').classList.add('hidden');
+          document.getElementById('countdownSection').classList.add('hidden');
+          document.getElementById('stopwatchSection').classList.add('hidden');
+
+          if (tabMode === 'cyclic') document.getElementById('cyclicSection').classList.remove('hidden');
+          if (tabMode === 'countdown') document.getElementById('countdownSection').classList.remove('hidden');
+          if (tabMode === 'stopwatch') document.getElementById('stopwatchSection').classList.remove('hidden');
+        });
+      });
+
+      // --- Audio Test Button ---
+      document.getElementById('testAudioBtn').addEventListener('click', () => {
+        getAudioContext();
+        playSingingBowl(1.0);
+        showToast('🔊 頌缽聲音測試 (Web Audio API)');
+      });
+
+      // --- YouTube Drawer Toggle ---
+      const ytDrawerPanel = document.getElementById('ytDrawerPanel');
+      const timerMainColumn = document.getElementById('timerMainColumn');
+
+      const toggleDrawer = () => {
+        const isHidden = ytDrawerPanel.classList.contains('hidden');
+        if (isHidden) {
+          ytDrawerPanel.classList.remove('hidden');
+          timerMainColumn.classList.remove('lg:col-span-12');
+          timerMainColumn.classList.add('lg:col-span-8');
+        } else {
+          ytDrawerPanel.classList.add('hidden');
+          timerMainColumn.classList.remove('lg:col-span-8');
+          timerMainColumn.classList.add('lg:col-span-12');
+        }
+      };
+
+      document.getElementById('toggleYtDrawerBtn').addEventListener('click', toggleDrawer);
+      document.getElementById('closeYtDrawerBtn').addEventListener('click', toggleDrawer);
+
+      // --- Cyclic Controls ---
+      function updateCyclicFromInputs() {
+        const m = parseInt(document.getElementById('cyclicMinInput').value) || 0;
+        const s = parseInt(document.getElementById('cyclicSecInput').value) || 0;
+        const rounds = parseInt(document.getElementById('cyclicRoundsInput').value) || 1;
+
+        cyclicSingleDuration = (m * 60) + s;
+        cyclicTotalRounds = rounds;
+
+        if (!cyclicIsRunning) {
+          cyclicRemainingSeconds = cyclicSingleDuration;
+          updateCyclicUI();
+        }
+      }
+
+      ['cyclicMinInput', 'cyclicSecInput', 'cyclicRoundsInput'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('input', updateCyclicFromInputs);
+          el.addEventListener('change', updateCyclicFromInputs);
+        }
+      });
+
+      document.getElementById('cyclicStartBtn').addEventListener('click', startCyclicTimer);
+      document.getElementById('cyclicResetBtn').addEventListener('click', resetCyclicTimer);
+
+      document.getElementById('saveCyclicSettingsBtn').addEventListener('click', () => {
+        updateCyclicFromInputs();
+        parsePromptsTextarea();
+        resetCyclicTimer();
+        saveStateToLocalStorage();
+        showToast('循環計時設定已成功儲存與更新！');
+      });
+
+      document.getElementById('cyclicPresetDropdownBtn').addEventListener('click', () => {
+        document.getElementById('cyclicPromptsTextarea').value = DEFAULT_PROMPTS.join('\n');
+        document.getElementById('cyclicMinInput').value = 2;
+        document.getElementById('cyclicSecInput').value = 0;
+        document.getElementById('cyclicRoundsInput').value = 26;
+        updateCyclicFromInputs();
+        parsePromptsTextarea();
+        showToast('已恢復預設 26 輪藥光手位範本');
+      });
+
+      // --- Countdown Controls ---
+      document.getElementById('cdStartBtn').addEventListener('click', startCountdownTimer);
+      document.getElementById('cdResetBtn').addEventListener('click', resetCountdownTimer);
+
+      // Quick Countdown Presets
+      document.querySelectorAll('.cd-preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const mins = parseInt(btn.getAttribute('data-cd-preset'));
+          document.getElementById('cdHours').value = 0;
+          document.getElementById('cdMinutes').value = mins;
+          document.getElementById('cdSeconds').value = 0;
+          resetCountdownTimer();
+        });
+      });
+
+      ['cdHours', 'cdMinutes', 'cdSeconds'].forEach(id => {
+        document.getElementById(id).addEventListener('change', resetCountdownTimer);
+      });
+
+      // --- Stopwatch Controls ---
+      document.getElementById('swStartBtn').addEventListener('click', startStopwatchTimer);
+      document.getElementById('swResetBtn').addEventListener('click', resetStopwatchTimer);
+      document.getElementById('swLapBtn').addEventListener('click', recordLap);
+
+      // --- YouTube Controls ---
+      document.getElementById('addYtBtn').addEventListener('click', () => {
+        const input = document.getElementById('ytUrlInput');
+        const val = input.value.trim();
+        if (!val) return;
+        const videoId = parseYouTubeId(val);
+
+        const newTrack = {
+          id: videoId,
+          title: `自訂曲目 (${videoId})`
+        };
+        ytPlaylist.push(newTrack);
+
+        input.value = '';
+        renderPlaylistUI();
+        saveStateToLocalStorage();
+        
+        // Prompt to customize title right after adding
+        editPlaylistItemTitle(ytPlaylist.length - 1);
+      });
+
+      // Volume Slider Controls
+      document.getElementById('ytVolumeSlider').addEventListener('input', (e) => {
+        ytVolume = parseInt(e.target.value) || 0;
+        document.getElementById('ytVolumeValue').textContent = `${ytVolume}%`;
+        if (ytIsReady && ytPlayer && typeof ytPlayer.setVolume === 'function') {
+          ytPlayer.setVolume(ytVolume);
+          if (ytVolume === 0) {
+            ytPlayer.mute();
+          } else {
+            ytPlayer.unMute();
+          }
+        }
+        updateVolumeIcon();
+        saveStateToLocalStorage();
+      });
+
+      document.getElementById('ytMuteBtn').addEventListener('click', () => {
+        ytIsMuted = !ytIsMuted;
+        if (ytIsReady && ytPlayer) {
+          if (ytIsMuted) {
+            ytPlayer.mute();
+          } else {
+            ytPlayer.unMute();
+            ytPlayer.setVolume(ytVolume);
+          }
+        }
+        updateVolumeIcon();
+      });
+
+      function updateVolumeIcon() {
+        const icon = document.getElementById('ytVolumeIcon');
+        if (!icon) return;
+        if (ytIsMuted || ytVolume === 0) {
+          icon.setAttribute('data-lucide', 'volume-x');
+        } else if (ytVolume < 50) {
+          icon.setAttribute('data-lucide', 'volume-1');
+        } else {
+          icon.setAttribute('data-lucide', 'volume-2');
+        }
+        lucide.createIcons();
+      }
+
+      document.getElementById('ytTimerSyncToggle').addEventListener('change', (e) => {
+        ytTimerSync = e.target.checked;
+        saveStateToLocalStorage();
+      });
+
+      document.getElementById('ytLoopSelect').addEventListener('change', (e) => {
+        ytLoopMode = e.target.value;
+        saveStateToLocalStorage();
+      });
+
+    });
+  </script>
+</body>
+</html>
