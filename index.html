@@ -469,7 +469,7 @@
         </div>
 
         <!-- Volume Control Slider -->
-        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 mb-4 flex items-center justify-between gap-3">
+        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 mb-2 flex items-center justify-between gap-3">
           <div class="flex items-center gap-2 text-xs text-amber-200 font-medium shrink-0">
             <button id="ytMuteBtn" class="text-amber-400 hover:text-amber-300 cursor-pointer">
               <i data-lucide="volume-2" id="ytVolumeIcon" class="w-4 h-4"></i>
@@ -478,6 +478,12 @@
           </div>
           <input type="range" id="ytVolumeSlider" min="0" max="100" value="80" class="w-full h-1.5 bg-slate-800 rounded-lg accent-amber-500 cursor-pointer">
           <span id="ytVolumeValue" class="text-xs font-mono text-amber-400 w-8 text-right">80%</span>
+        </div>
+
+        <!-- Mobile Volume Control Tip Note -->
+        <div id="mobileVolumeNote" class="mb-4 text-[11px] text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-start gap-2 leading-relaxed">
+          <i data-lucide="smartphone" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i>
+          <span>行動裝置提示：手機請使用實體按鍵調整整體音量，可用上方拉桿單獨平衡頌缽與播放器音量。</span>
         </div>
 
         <!-- Add Track Form -->
@@ -608,7 +614,7 @@
 
 
     /* ==========================================================================
-       2. WEB AUDIO API SYNTHESIZER (SINGING BOWL / 磬聲音效)
+       2. WEB AUDIO API SYNTHESIZER (SINGING BOWL / 磬聲音效 & MOBILE AUDIO UNLOCKER)
        ========================================================================== */
     function getAudioContext() {
       if (!audioCtx) {
@@ -618,114 +624,140 @@
       return audioCtx;
     }
 
+    let audioUnlocked = false;
+
     /**
-     * Unlocks Web Audio API on iOS Safari / Android Chrome using user gesture
+     * Unlocks Web Audio API on iOS Safari / Android Chrome using any user gesture
+     * Resumes AudioContext & plays a 0.001s silent buffer to unblock mobile hardware audio
      */
-    function ensureAudioUnlocked(callback) {
+    function unlockGlobalAudio() {
       const ctx = getAudioContext();
-      if (!ctx) {
-        if (callback) callback();
-        return;
-      }
+      if (!ctx) return;
 
       if (ctx.state === 'suspended') {
-        // Play silent 1-sample buffer to unlock iOS Safari hardware audio channel
-        try {
-          const buffer = ctx.createBuffer(1, 1, 22050);
-          const source = ctx.createBufferSource();
-          source.buffer = buffer;
-          source.connect(ctx.destination);
-          source.start(0);
-        } catch (e) {
-          // ignore
-        }
+        ctx.resume();
+      }
 
+      // Play 0.001s silent buffer to force unlock iOS Safari hardware audio channel
+      try {
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+      } catch (e) {
+        // ignore
+      }
+
+      if (ctx.state === 'running') {
+        audioUnlocked = true;
+        removeUnlockListeners();
+      } else {
         ctx.resume().then(() => {
-          if (callback) callback();
+          if (ctx.state === 'running') {
+            audioUnlocked = true;
+            removeUnlockListeners();
+          }
         }).catch(err => {
           console.warn("Audio Context resume failed:", err);
-          if (callback) callback();
         });
-      } else {
-        if (callback) callback();
       }
+    }
+
+    function setupUnlockListeners() {
+      ['touchstart', 'touchend', 'pointerdown', 'click', 'keydown'].forEach(evt => {
+        document.addEventListener(evt, unlockGlobalAudio, { passive: true, capture: true });
+      });
+    }
+
+    function removeUnlockListeners() {
+      ['touchstart', 'touchend', 'pointerdown', 'click', 'keydown'].forEach(evt => {
+        document.removeEventListener(evt, unlockGlobalAudio, { capture: true });
+      });
     }
 
     /**
      * Synthesizes an authentic Tibetan Singing Bowl sound using multi-harmonic sine waves,
      * low-pass filtering, and dynamic compression for a 100% smooth, warm, and rounded tone without clipping.
+     * Guarantees zero latency on mobile devices.
      */
     function playSingingBowl(pitchRatio = 1.0) {
-      ensureAudioUnlocked(() => {
-        try {
-          const ctx = getAudioContext();
-          if (!ctx || ctx.state !== 'running') return;
-          const now = ctx.currentTime;
+      // Always trigger unlock attempt on sound playback
+      unlockGlobalAudio();
 
-          // Dynamics Compressor & Lowpass Filter for 100% round, smooth, distortion-free sound
-          const compressor = ctx.createDynamicsCompressor();
-          compressor.threshold.setValueAtTime(-6, now);
-          compressor.knee.setValueAtTime(12, now);
-          compressor.ratio.setValueAtTime(8, now);
-          compressor.attack.setValueAtTime(0.003, now);
-          compressor.release.setValueAtTime(0.25, now);
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
 
-          const filter = ctx.createBiquadFilter();
-          filter.type = 'lowpass';
-          filter.frequency.setValueAtTime(1400, now);
-          filter.Q.setValueAtTime(1.0, now);
-
-          const masterGain = ctx.createGain();
-          masterGain.gain.setValueAtTime(1.0, now);
-
-          // Connect nodes: Oscillators -> MasterGain -> LowpassFilter -> Compressor -> Destination
-          masterGain.connect(filter);
-          filter.connect(compressor);
-          compressor.connect(ctx.destination);
-
-          // Deep fundamental frequency (216 Hz)
-          const fundamental = 216 * pitchRatio;
-
-          // Harmonics array for a round, warm Tibetan singing bowl: [freq_multiplier, gain_weight, decay_sec]
-          const harmonics = [
-            [1.0,   0.90, 6.0], // Fundamental (Warm, deep body)
-            [2.76,  0.35, 5.0], // Warm overtone
-            [5.40,  0.15, 3.8], // Subtle metallic resonance
-            [8.90,  0.05, 2.5]  // Soft shimmer
-          ];
-
-          harmonics.forEach(([mult, gainVal, decaySec]) => {
-            const osc = ctx.createOscillator();
-            const gainNode = ctx.createGain();
-
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(fundamental * mult, now);
-
-            // Smooth vibrato LFO
-            const lfo = ctx.createOscillator();
-            const lfoGain = ctx.createGain();
-            lfo.frequency.setValueAtTime(3.2, now);
-            lfoGain.gain.setValueAtTime(fundamental * mult * 0.0025, now);
-            lfo.connect(osc.frequency);
-            lfo.start(now);
-            lfo.stop(now + decaySec);
-
-            // Smooth attack ramp (0.05s) to eliminate pops, followed by exponential decay
-            gainNode.gain.setValueAtTime(0.0001, now);
-            gainNode.gain.linearRampToValueAtTime(gainVal, now + 0.05);
-            gainNode.gain.exponentialRampToValueAtTime(0.0001, now + decaySec);
-
-            osc.connect(gainNode);
-            gainNode.connect(masterGain);
-
-            osc.start(now);
-            osc.stop(now + decaySec);
-          });
-
-        } catch (err) {
-          console.warn("Audio playback failed:", err);
+        if (ctx.state === 'suspended') {
+          ctx.resume();
         }
-      });
+
+        const now = ctx.currentTime;
+
+        // Dynamics Compressor & Lowpass Filter for 100% round, smooth, distortion-free sound
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-6, now);
+        compressor.knee.setValueAtTime(12, now);
+        compressor.ratio.setValueAtTime(8, now);
+        compressor.attack.setValueAtTime(0.003, now);
+        compressor.release.setValueAtTime(0.25, now);
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1400, now);
+        filter.Q.setValueAtTime(1.0, now);
+
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(1.0, now);
+
+        // Connect nodes: Oscillators -> MasterGain -> LowpassFilter -> Compressor -> Destination
+        masterGain.connect(filter);
+        filter.connect(compressor);
+        compressor.connect(ctx.destination);
+
+        // Deep fundamental frequency (216 Hz)
+        const fundamental = 216 * pitchRatio;
+
+        // Harmonics array for a round, warm Tibetan singing bowl: [freq_multiplier, gain_weight, decay_sec]
+        const harmonics = [
+          [1.0,   0.90, 6.0], // Fundamental (Warm, deep body)
+          [2.76,  0.35, 5.0], // Warm overtone
+          [5.40,  0.15, 3.8], // Subtle metallic resonance
+          [8.90,  0.05, 2.5]  // Soft shimmer
+        ];
+
+        harmonics.forEach(([mult, gainVal, decaySec]) => {
+          const osc = ctx.createOscillator();
+          const gainNode = ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(fundamental * mult, now);
+
+          // Smooth vibrato LFO
+          const lfo = ctx.createOscillator();
+          const lfoGain = ctx.createGain();
+          lfo.frequency.setValueAtTime(3.2, now);
+          lfoGain.gain.setValueAtTime(fundamental * mult * 0.0025, now);
+          lfo.connect(osc.frequency);
+          lfo.start(now);
+          lfo.stop(now + decaySec);
+
+          // Smooth attack ramp (0.05s) to eliminate pops, followed by exponential decay
+          gainNode.gain.setValueAtTime(0.0001, now);
+          gainNode.gain.linearRampToValueAtTime(gainVal, now + 0.05);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, now + decaySec);
+
+          osc.connect(gainNode);
+          gainNode.connect(masterGain);
+
+          osc.start(now);
+          osc.stop(now + decaySec);
+        });
+
+      } catch (err) {
+        console.warn("Audio playback failed:", err);
+      }
     }
 
 
@@ -770,10 +802,16 @@
       }
     }
 
-    // Re-acquire lock if user returns to tab
+    // Re-acquire lock & AudioContext if user returns to tab
     document.addEventListener('visibilitychange', async () => {
-      if (wakeLock !== null && document.visibilityState === 'visible') {
-        await requestWakeLock();
+      if (document.visibilityState === 'visible') {
+        if (wakeLock !== null) {
+          await requestWakeLock();
+        }
+        const ctx = getAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+          ctx.resume();
+        }
       }
     });
 
@@ -1435,14 +1473,8 @@
         });
       });
 
-      // Unlock AudioContext on first touch/click anywhere on mobile
-      const unlockOnFirstTouch = () => {
-        ensureAudioUnlocked();
-        document.removeEventListener('touchstart', unlockOnFirstTouch);
-        document.removeEventListener('click', unlockOnFirstTouch);
-      };
-      document.addEventListener('touchstart', unlockOnFirstTouch, { passive: true });
-      document.addEventListener('click', unlockOnFirstTouch, { passive: true });
+      // Setup Global Audio Unlocker for iOS / Android mobile browsers
+      setupUnlockListeners();
 
       // --- Audio Test Button (Mobile Touch & Click Handled) ---
       const testAudioBtn = document.getElementById('testAudioBtn');
@@ -1456,10 +1488,9 @@
             return;
           }
         }
-        ensureAudioUnlocked(() => {
-          playSingingBowl(1.0);
-          showToast('🔊 頌缽聲音測試 (Web Audio API)');
-        });
+        unlockGlobalAudio();
+        playSingingBowl(1.0);
+        showToast('🔊 頌缽聲音測試 (Web Audio API)');
       };
 
       testAudioBtn.addEventListener('touchstart', runAudioTest, { passive: true });
