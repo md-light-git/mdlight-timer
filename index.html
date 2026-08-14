@@ -468,8 +468,18 @@
           </iframe>
         </div>
 
-        <!-- Volume Control Slider -->
-        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 mb-2 flex items-center justify-between gap-3">
+        <!-- 獨立頌缽音效音量控制 (50% ~ 150%) (全裝置皆顯示) -->
+        <div class="bg-slate-950/80 border border-amber-500/30 rounded-xl p-3 mb-3 flex items-center justify-between gap-3 shadow-inner">
+          <div class="flex items-center gap-2 text-xs text-amber-300 font-semibold shrink-0">
+            <i data-lucide="bell" class="w-4 h-4 text-amber-400"></i>
+            <span>頌缽音量</span>
+          </div>
+          <input type="range" id="bowlVolumeSlider" min="50" max="150" value="100" class="w-full h-1.5 bg-slate-800 rounded-lg accent-amber-400 cursor-pointer">
+          <span id="bowlVolumeValue" class="text-xs font-mono text-amber-300 w-10 text-right">100%</span>
+        </div>
+
+        <!-- YouTube 音樂音量控制 (僅桌面版/大螢幕顯示: hidden md:flex) -->
+        <div id="ytVolumeContainer" class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 mb-4 hidden md:flex items-center justify-between gap-3">
           <div class="flex items-center gap-2 text-xs text-amber-200 font-medium shrink-0">
             <button id="ytMuteBtn" class="text-amber-400 hover:text-amber-300 cursor-pointer">
               <i data-lucide="volume-2" id="ytVolumeIcon" class="w-4 h-4"></i>
@@ -478,12 +488,6 @@
           </div>
           <input type="range" id="ytVolumeSlider" min="0" max="100" value="80" class="w-full h-1.5 bg-slate-800 rounded-lg accent-amber-500 cursor-pointer">
           <span id="ytVolumeValue" class="text-xs font-mono text-amber-400 w-8 text-right">80%</span>
-        </div>
-
-        <!-- Mobile Volume Control Tip Note -->
-        <div id="mobileVolumeNote" class="mb-4 text-[11px] text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-start gap-2 leading-relaxed">
-          <i data-lucide="smartphone" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i>
-          <span>行動裝置提示：手機請使用實體按鍵調整整體音量，可用上方拉桿單獨平衡頌缽與播放器音量。</span>
         </div>
 
         <!-- Add Track Form -->
@@ -611,6 +615,7 @@
     let ytTimerSync = true;
     let ytVolume = 80;
     let ytIsMuted = false;
+    let singingBowlVolume = 100; // Default 100% (range 50% to 150%)
 
 
     /* ==========================================================================
@@ -708,8 +713,10 @@
         filter.frequency.setValueAtTime(1400, now);
         filter.Q.setValueAtTime(1.0, now);
 
+        // Independent Singing Bowl GainNode control (50% ~ 150%)
+        const userVolRatio = (singingBowlVolume / 100);
         const masterGain = ctx.createGain();
-        masterGain.gain.setValueAtTime(1.0, now);
+        masterGain.gain.setValueAtTime(userVolRatio, now);
 
         // Connect nodes: Oscillators -> MasterGain -> LowpassFilter -> Compressor -> Destination
         masterGain.connect(filter);
@@ -1369,13 +1376,14 @@
         ytPlaylist,
         ytTimerSync,
         ytLoopMode,
-        ytVolume
+        ytVolume,
+        singingBowlVolume
       };
-      localStorage.setItem('medicine_light_config_v3', JSON.stringify(data));
+      localStorage.setItem('medicine_light_config_v4', JSON.stringify(data));
     }
 
     function loadStateFromLocalStorage() {
-      const saved = localStorage.getItem('medicine_light_config_v3');
+      const saved = localStorage.getItem('medicine_light_config_v4') || localStorage.getItem('medicine_light_config_v3');
       if (!saved) return;
       try {
         const data = JSON.parse(saved);
@@ -1407,6 +1415,13 @@
           ytVolume = data.ytVolume;
           document.getElementById('ytVolumeSlider').value = ytVolume;
           document.getElementById('ytVolumeValue').textContent = `${ytVolume}%`;
+        }
+        if (typeof data.singingBowlVolume === 'number') {
+          singingBowlVolume = Math.min(150, Math.max(50, data.singingBowlVolume));
+          const bowlSlider = document.getElementById('bowlVolumeSlider');
+          if (bowlSlider) bowlSlider.value = singingBowlVolume;
+          const bowlValSpan = document.getElementById('bowlVolumeValue');
+          if (bowlValSpan) bowlValSpan.textContent = `${singingBowlVolume}%`;
         }
       } catch (err) {
         console.warn('Failed to parse localStorage:', err);
@@ -1620,6 +1635,16 @@
         // Prompt to customize title right after adding
         editPlaylistItemTitle(ytPlaylist.length - 1);
       });
+
+      // Singing Bowl Volume Slider Control (50% ~ 150%)
+      const bowlSlider = document.getElementById('bowlVolumeSlider');
+      if (bowlSlider) {
+        bowlSlider.addEventListener('input', (e) => {
+          singingBowlVolume = parseInt(e.target.value) || 100;
+          document.getElementById('bowlVolumeValue').textContent = `${singingBowlVolume}%`;
+          saveStateToLocalStorage();
+        });
+      }
 
       // Volume Slider Controls
       document.getElementById('ytVolumeSlider').addEventListener('input', (e) => {
